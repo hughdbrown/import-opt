@@ -28,17 +28,50 @@ class ImportOptimizer:
         with open(fullpath) as handle:
             # Dense collection of lines in list
             self.data: List[str] = [line.rstrip() for line in handle]
-            # Sparse collection of non-blank, non-comment lines
-            self.lines: Dict[int, str] = {
-                i: line
-                for i, line in enumerate(self.data)
-                if line and not line.startswith('#')
-            }
+
+        # Sparse collection of non-blank, non-comment lines
+        self.lines: Dict[int, str] = {}
         self.imports: Dict[int, List[Tuple[str, str]]] = defaultdict(list)
         self.inv_imports: Dict[str, int] = {}
         self.direct_imports: Dict[str, Set[str]] = defaultdict(set)
         self.file_words: Dict[str, List[int]] = defaultdict(list)  # Lines where words occur
         self.changes = 0
+
+    def _strip_comment_blocks(self, delimiter):
+        comment_lines, parity = [], 0
+        for i, line in enumerate(self.data):
+            x = line.strip()
+            if x == delimiter:
+                comment_lines.append(i)
+                parity = not parity
+            else:
+                s = x.startswith(delimiter)
+                e = x.endswith(delimiter)
+                if s and e:
+                    comment_lines.append(i)
+                    comment_lines.append(i)
+                elif s:
+                    if parity: return
+                    comment_lines.append(i)
+                    parity = 1
+                elif e:
+                    if not parity: return
+                    comment_lines.append(i)
+                    parity = 0
+        if not parity:
+            for i in range(0, len(comment_lines), 2):
+                s, e = comment_lines[i], comment_lines[i + 1]
+                for j in range(s, e + 1):
+                    del self.lines[j]
+
+    def _build_valid_lines(self):
+        self.lines: Dict[int, str] = {
+            i: line
+            for i, line in enumerate(self.data)
+            if line and not line.startswith('#')
+        }
+        self._strip_comment_blocks('"""')
+        self._strip_comment_blocks("'''")
 
     def _build_imports(self):
         """Create self.imports."""
@@ -99,6 +132,7 @@ class ImportOptimizer:
 
     def __enter__(self):
         """Context manager enter."""
+        self._build_valid_lines()
         self._build_imports()
         self._build_file_words()
         self._build_direct_imports()
