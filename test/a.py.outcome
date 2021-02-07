@@ -1,6 +1,9 @@
 from x import y
+from x.a import n, z
 
 y()
+z()
+n()
 
 """
 This is a comment.

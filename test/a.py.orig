@@ -1,6 +1,8 @@
 import x
 
 x.y()
+x.a.z()
+x.a.n()
 
 """
 This is a comment.
